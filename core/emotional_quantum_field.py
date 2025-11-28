@@ -5,6 +5,7 @@ import json
 import numpy as np
 from typing import Dict, Any, List
 import math
+import scipy.linalg
 
 
 class EmotionalQuantumField:
@@ -197,6 +198,3 @@ class EmotionalQuantumField:
             'emotional_entropy': self.calculate_emotional_entropy(),
             'coherence': float(np.sum(np.abs(self.psi)**2))  # Уровень когерентности
         }
-
-
-import scipy.linalg

@@ -7,52 +7,18 @@
 .env.local
 *.env.*
 
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
+# Temporary files
 *.tmp
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-venv/
-.venv/
-.env
-.env.local
-pyvenv.cfg
-pip-log.txt
-pip-delete-this-directory.txt
+*.swp
 
 # Build artifacts
-build/
 dist/
-*.egg
-*.egg-info/
-*.so
-*.dylib
-*.dll
-*.exe
-*.out
+build/
+*.pyc
+__pycache__/
 
-# Testing
-.coverage
-htmlcov/
-.coverage.*
-.nyc_output
-coverage/
-junit.xml
-
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+# Dependencies
+node_modules/
+.venv/
+venv/
 ```

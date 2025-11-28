@@ -49,24 +49,28 @@ from utils.config_loader import ConfigLoader
 
 class EmotionalAISystem:
     def __init__(self, base_path: str):
+        # Автоматическое определение всех путей
+        execution_base_path = os.path.dirname(os.path.abspath(__file__))
+        
+        # Определение пути к логам
+        logs_path = self._find_logs_path(execution_base_path)
+        
         self.base_path = base_path
-        self.logger = SystemLogger(os.path.join(base_path, 'logs'))
+        self.logger = SystemLogger(logs_path)
         self.metrics = MetricsCollector()
-        self.config = ConfigLoader.load_all_configs(base_path)
+        
+        # Определение остальных путей
+        configs_path = self._find_configs_path(execution_base_path)
+        self.config = ConfigLoader.load_all_configs(configs_path)
         
         # Инициализация модулей в правильном порядке
-        self.init_modules()
+        self.init_modules(configs_path, execution_base_path)
         
-    def init_modules(self):
+    def init_modules(self, configs_path: str, execution_base_path: str):
         try:
             # Автоматическое определение путей для всех файлов
-            execution_base_path = os.path.dirname(os.path.abspath(__file__))
-            
             # Определение пути к модели FRED
             fred_path = self._find_fred_path(execution_base_path)
-            
-            # Определение пути к конфигурациям
-            configs_path = self._find_configs_path(execution_base_path)
             
             # Определение пути к базе данных памяти
             memory_path = self._find_memory_path(execution_base_path)
@@ -133,59 +137,99 @@ class EmotionalAISystem:
     
     def _find_fred_path(self, base_path: str) -> str:
         """Автоматическое определение пути к модели FRED"""
-        possible_paths = [
-            os.path.join(base_path, 'FRED'),
+        # Сначала ищем в текущей директории
+        current_path = os.path.join(base_path, 'FRED')
+        if os.path.exists(current_path):
+            return current_path
+        
+        # Затем ищем в поддиректориях
+        search_paths = [
             os.path.join(base_path, 'models', 'FRED'),
             os.path.join(base_path, 'models', 'fred-t5'),
             os.path.join(base_path, 'models'),
+            os.path.join(base_path, 'FRED'),
         ]
         
-        for path in possible_paths:
+        for path in search_paths:
             if os.path.exists(path):
                 # Проверяем, есть ли в директории необходимые файлы модели
-                files = os.listdir(path)
-                model_files = [f for f in files if f.endswith(('.bin', '.json', '.pt', '.ckpt', '.safetensors'))]
-                if len(model_files) >= 3:  # Если есть хотя бы 3 файла модели
-                    return path
+                try:
+                    files = os.listdir(path)
+                    # Ищем файлы модели (модельные файлы, токенизатор, конфиги)
+                    model_files = [f for f in files if any(ext in f.lower() for ext in ['.bin', '.json', '.pt', '.ckpt', '.safetensors', 'tokenizer', 'config'])]
+                    if len(model_files) >= 3:  # Если есть хотя бы 3 файла модели
+                        return path
+                except PermissionError:
+                    continue
         
         # Если не найдено, выбрасываем ошибку
-        raise FileNotFoundError(f"Could not find FRED model in any of the expected locations: {possible_paths}")
+        raise FileNotFoundError(f"Could not find FRED model in any of the expected locations: {search_paths}")
     
     def _find_configs_path(self, base_path: str) -> str:
         """Автоматическое определение пути к конфигурациям"""
-        possible_paths = [
+        search_paths = [
             os.path.join(base_path, 'configs'),
             os.path.join(base_path, 'config'),
             os.path.join(base_path, 'configuration'),
+            os.path.join(base_path, 'settings'),
         ]
         
-        for path in possible_paths:
+        for path in search_paths:
             if os.path.exists(path):
-                files = os.listdir(path)
-                config_files = [f for f in files if f.endswith('.json') or f.endswith('.yaml')]
-                if len(config_files) > 0:
-                    return path
+                try:
+                    files = os.listdir(path)
+                    # Ищем JSON или YAML файлы конфигурации
+                    config_files = [f for f in files if f.endswith(('.json', '.yaml', '.yml'))]
+                    if len(config_files) > 0:
+                        return path
+                except PermissionError:
+                    continue
         
         # Если не найдено, выбрасываем ошибку
-        raise FileNotFoundError(f"Could not find configs directory in any of the expected locations: {possible_paths}")
+        raise FileNotFoundError(f"Could not find configs directory in any of the expected locations: {search_paths}")
     
     def _find_memory_path(self, base_path: str) -> str:
         """Автоматическое определение пути к базе данных памяти"""
-        possible_paths = [
+        search_paths = [
             os.path.join(base_path, 'models', 'memory_db'),
             os.path.join(base_path, 'memory'),
             os.path.join(base_path, 'data', 'memory'),
+            os.path.join(base_path, 'storage', 'memory'),
         ]
         
-        for path in possible_paths:
-            os.makedirs(path, exist_ok=True)  # Создаем директорию, если она не существует
-            if os.path.exists(path):
-                return path
+        for path in search_paths:
+            try:
+                os.makedirs(path, exist_ok=True)  # Создаем директорию, если она не существует
+                if os.path.exists(path):
+                    return path
+            except PermissionError:
+                continue
         
         # Если не найдено, создаем и возвращаем
         memory_path = os.path.join(base_path, 'models', 'memory_db')
         os.makedirs(memory_path, exist_ok=True)
         return memory_path
+    
+    def _find_logs_path(self, base_path: str) -> str:
+        """Автоматическое определение пути к логам"""
+        search_paths = [
+            os.path.join(base_path, 'logs'),
+            os.path.join(base_path, 'log'),
+            os.path.join(base_path, 'data', 'logs'),
+        ]
+        
+        for path in search_paths:
+            try:
+                os.makedirs(path, exist_ok=True)  # Создаем директорию, если она не существует
+                if os.path.exists(path):
+                    return path
+            except PermissionError:
+                continue
+        
+        # Если не найдено, создаем и возвращаем
+        logs_path = os.path.join(base_path, 'logs')
+        os.makedirs(logs_path, exist_ok=True)
+        return logs_path
 
     def process_interaction(self, user_input: str) -> str:
         """Основной цикл обработки взаимодействия"""
@@ -345,13 +389,23 @@ class EmotionalAISystem:
         
         for name, module in modules.items():
             try:
-                # Проверяем наличие метода получения состояния
-                if hasattr(module, 'get_') or hasattr(module, '_get_current'):
+                # Проверяем наличие методов получения состояния или простую функциональность
+                if hasattr(module, 'get_current_superposition'):
+                    # Для эмоционального поля
+                    module.get_current_superposition()
+                    health_status[name] = 'OK'
+                elif hasattr(module, 'get_memory_statistics'):
+                    # Для системы памяти
+                    module.get_memory_statistics()
+                    health_status[name] = 'OK'
+                elif hasattr(module, 'get_') or hasattr(module, '_get_current'):
+                    # Общая проверка на методы получения состояния
                     health_status[name] = 'OK'
                 else:
-                    health_status[name] = 'PARTIAL'
-            except Exception:
-                health_status[name] = 'ERROR'
+                    # Если методов получения состояния нет, просто проверяем, что модуль существует
+                    health_status[name] = 'LOADED'
+            except Exception as e:
+                health_status[name] = f'ERROR: {str(e)}'
         
         return health_status
     
@@ -396,7 +450,7 @@ class EmotionalAIUI:
         self.system = system
         self.root = tk.Tk()
         self.root.title("Emotional AI System - Hacker Interface")
-        self.root.geometry("1000x700")
+        self.root.geometry("1200x800")
         
         # Устанавливаем темный стиль
         self.setup_dark_theme()
@@ -424,10 +478,12 @@ class EmotionalAIUI:
         accent_color = '#00cc00'  # Акцентный цвет
         input_bg = '#111111'  # Фон для ввода
         button_bg = '#003300'  # Фон кнопок
+        border_color = '#005500'  # Цвет границ
         
         # Настройка стилей
         style.configure('TFrame', background=bg_color)
-        style.configure('TLabel', background=bg_color, foreground=text_color, font=('Courier', 10, 'bold'))
+        style.configure('TLabel', background=bg_color, foreground=text_color, 
+                       font=('Courier', 10, 'bold'))
         style.configure('TButton', background=button_bg, foreground=text_color, 
                        font=('Courier', 10, 'bold'), borderwidth=2)
         style.map('TButton', background=[('active', accent_color)])
@@ -435,6 +491,11 @@ class EmotionalAIUI:
         style.configure('TNotebook.Tab', background=button_bg, foreground=text_color, 
                        font=('Courier', 10, 'bold'))
         style.map('TNotebook.Tab', background=[('selected', accent_color)])
+        
+        # Добавляем стиль для Entry
+        style.configure('Dark.TEntry', fieldbackground=input_bg, foreground=text_color, 
+                       insertcolor=text_color, selectbackground=accent_color, 
+                       selectforeground=bg_color)
     
     def create_widgets(self):
         """Создание виджетов интерфейса"""
@@ -443,7 +504,7 @@ class EmotionalAIUI:
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
         # Заголовок
-        title_label = ttk.Label(main_frame, text="EMOTIONAL AI SYSTEM", font=('Courier', 20, 'bold'))
+        title_label = ttk.Label(main_frame, text="EMOTIONAL AI SYSTEM", font=('Courier', 24, 'bold'))
         title_label.pack(pady=10)
         
         # Создаем вкладки
@@ -480,8 +541,10 @@ class EmotionalAIUI:
             state=tk.DISABLED,
             bg='#0a0a0a', 
             fg='#00ff00', 
-            font=('Courier', 10),
-            insertbackground='#00ff00'
+            font=('Courier', 12),
+            insertbackground='#00ff00',
+            borderwidth=2,
+            relief='solid'
         )
         self.chat_display.pack(fill=tk.BOTH, expand=True, side=tk.TOP)
         
@@ -535,7 +598,9 @@ class EmotionalAIUI:
             height=3,
             bg='#111111', 
             fg='#00ff00', 
-            font=('Courier', 10)
+            font=('Courier', 10),
+            borderwidth=2,
+            relief='solid'
         )
         self.training_input.pack(fill=tk.X, pady=5)
         
@@ -548,7 +613,9 @@ class EmotionalAIUI:
             height=3,
             bg='#111111', 
             fg='#00ff00', 
-            font=('Courier', 10)
+            font=('Courier', 10),
+            borderwidth=2,
+            relief='solid'
         )
         self.training_expected.pack(fill=tk.X, pady=5)
         
@@ -570,7 +637,9 @@ class EmotionalAIUI:
             height=8,
             bg='#111111', 
             fg='#00ff00', 
-            font=('Courier', 10)
+            font=('Courier', 10),
+            borderwidth=2,
+            relief='solid'
         )
         self.training_result.pack(fill=tk.BOTH, expand=True, pady=5)
     
@@ -594,7 +663,9 @@ class EmotionalAIUI:
             wrap=tk.WORD,
             bg='#0a0a0a', 
             fg='#00ff00', 
-            font=('Courier', 10)
+            font=('Courier', 10),
+            borderwidth=2,
+            relief='solid'
         )
         self.metrics_display.pack(fill=tk.BOTH, expand=True, pady=5)
         
@@ -711,12 +782,8 @@ def main():
     # Определение корневой папки проекта
     base_path = os.path.dirname(os.path.abspath(__file__))
     
-    # Создание необходимых директорий
-    os.makedirs(os.path.join(base_path, 'logs'), exist_ok=True)
-    os.makedirs(os.path.join(base_path, 'models', 'memory_db'), exist_ok=True)
-    
     try:
-        # Инициализация системы
+        # Инициализация системы (автоматическое определение всех путей)
         system = EmotionalAISystem(base_path)
         
         # Создание и запуск UI
@@ -725,6 +792,8 @@ def main():
         
     except Exception as e:
         print(f"Ошибка инициализации системы: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 
