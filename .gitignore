@@ -2,23 +2,6 @@
 # Logs
 *.log
 
-# Environment files
-.env
-.env.local
-*.env.*
-
-# Temporary files
-*.tmp
-*.swp
-
-# Build artifacts
-dist/
-build/
-*.pyc
-__pycache__/
-
-# Dependencies
-node_modules/
-.venv/
-venv/
+# JSON log files
+logs/
 ```

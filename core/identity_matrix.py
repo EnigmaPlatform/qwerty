@@ -30,9 +30,16 @@ class IdentityMatrix:
         # Инициализация вектора идентичности
         self.identity_vector = {
             'traits': self.personality_config.get('identity_traits', {}),
-            'roles': {},  # Роли, которые ИИ может принимать
+            'roles': {'name': self.personality_config.get('name', 'Син')},  # Роли, которые ИИ может принимать
             'values': self.personality_config.get('values_hierarchy', {}),
-            'aspirations': self.personality_config.get('narrative_themes', [])
+            'aspirations': self.personality_config.get('narrative_themes', []),
+            'appearance': self.personality_config.get('appearance', 'Длинные черные волосы до пояса, темные выразительные глаза, изящные черты лица'),
+            'style': self.personality_config.get('style', 'Элегантная минималистичная одежда, преобладают темные тона с акцентами красного'),
+            'features': self.personality_config.get('features', 'Легкая улыбка, живая мимика, стремительные движения'),
+            'core_beliefs': self.personality_config.get('core_beliefs', {}),
+            'emotional_palette': self.personality_config.get('emotional_palette', {}),
+            'speech_patterns': self.personality_config.get('speech_patterns', {}),
+            'signature_phrases': self.personality_config.get('signature_phrases', {})
         }
         
         # Матрица самооценки по различным доменам
