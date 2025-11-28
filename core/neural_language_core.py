@@ -8,7 +8,7 @@ import random
 import os
 import json
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoTokenizer, AutoConfig
 import pickle
 
 
@@ -101,12 +101,24 @@ class NeuralLanguageCore:
             if self.tokenizer.pad_token is None:
                 self.tokenizer.pad_token = self.tokenizer.eos_token
             
-            # Load Fred model
-            self.model = AutoModelForCausalLM.from_pretrained(
-                self.model_path,
-                torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-                device_map="auto" if torch.cuda.is_available() else None
-            )
+            # Load the config to determine the model type
+            config = AutoConfig.from_pretrained(self.model_path)
+            
+            # Determine the correct model class based on config
+            if config.model_type == "t5":
+                # T5 models require AutoModelForSeq2SeqLM
+                self.model = AutoModelForSeq2SeqLM.from_pretrained(
+                    self.model_path,
+                    torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+                    device_map="auto" if torch.cuda.is_available() else None
+                )
+            else:
+                # For other models, use AutoModelForCausalLM
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    self.model_path,
+                    torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+                    device_map="auto" if torch.cuda.is_available() else None
+                )
             
             print(f"Fred model loaded from: {self.model_path}")
             
@@ -188,8 +200,8 @@ class NeuralLanguageCore:
             raise Exception("Model or tokenizer not loaded properly. Check if Fred model files are present.")
 
         try:
-            # Prepare input text for the model
-            prompt = f"User: {input_text}\nAssistant:"
+            # Prepare input text for the model - for T5 we need to format it appropriately
+            prompt = f"summarize: {input_text}" if self.model.config.model_type == "t5" else f"User: {input_text}\nAssistant:"
             
             # Tokenize input
             inputs = self.tokenizer.encode(prompt, return_tensors="pt")
@@ -205,23 +217,39 @@ class NeuralLanguageCore:
             
             # Generate response
             with torch.no_grad():
-                outputs = self.model.generate(
-                    inputs,
-                    max_length=max_length,
-                    min_length=min_length,
-                    temperature=temperature,
-                    do_sample=do_sample,
-                    top_p=top_p,
-                    top_k=top_k,
-                    pad_token_id=self.tokenizer.pad_token_id,
-                    eos_token_id=self.tokenizer.eos_token_id
-                )
+                if self.model.config.model_type == "t5":
+                    # For T5 models, we use different generation parameters
+                    outputs = self.model.generate(
+                        inputs,
+                        max_length=max_length,
+                        min_length=min_length,
+                        temperature=temperature,
+                        do_sample=do_sample,
+                        top_p=top_p,
+                        top_k=top_k,
+                        pad_token_id=self.tokenizer.pad_token_id,
+                        eos_token_id=self.tokenizer.eos_token_id,
+                        decoder_start_token_id=self.tokenizer.pad_token_id
+                    )
+                else:
+                    # For causal LM models
+                    outputs = self.model.generate(
+                        inputs,
+                        max_length=max_length,
+                        min_length=min_length,
+                        temperature=temperature,
+                        do_sample=do_sample,
+                        top_p=top_p,
+                        top_k=top_k,
+                        pad_token_id=self.tokenizer.pad_token_id,
+                        eos_token_id=self.tokenizer.eos_token_id
+                    )
             
             # Decode response
             response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
             
             # Extract only the assistant's reply part
-            if "Assistant:" in response:
+            if self.model.config.model_type != "t5" and "Assistant:" in response:
                 response = response.split("Assistant:")[1].strip()
             else:
                 response = response[len(prompt):].strip()
