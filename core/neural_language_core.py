@@ -10,6 +10,7 @@ import json
 import torch
 from transformers import AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoTokenizer, AutoConfig
 import pickle
+import timeout_decorator
 
 
 class NeuralLanguageCore:
@@ -175,22 +176,44 @@ class NeuralLanguageCore:
         """
         start_time = time.time()
         
-        # Use neural network for response generation
-        response = self._generate_with_neural_model(input_text, emotional_context)
-        
-        # Dynamic temperature based on emotional state
-        temperature = self._calculate_dynamic_temperature(emotional_context)
-        
-        processing_time = time.time() - start_time
-        
-        return {
-            "response": response,
-            "processing_time": processing_time,
-            "context_length": len(input_text),
-            "temperature_used": temperature,
-            "emotional_weights_applied": self.emotional_weights
-        }
+        try:
+            # Use neural network for response generation
+            response = self._generate_with_neural_model(input_text, emotional_context)
+            
+            # Dynamic temperature based on emotional state
+            temperature = self._calculate_dynamic_temperature(emotional_context)
+            
+            processing_time = time.time() - start_time
+            
+            return {
+                "response": response,
+                "processing_time": processing_time,
+                "context_length": len(input_text),
+                "temperature_used": temperature,
+                "emotional_weights_applied": self.emotional_weights
+            }
+        except timeout_decorator.TimeoutError:
+            print("Response generation timed out after 30 seconds")
+            processing_time = time.time() - start_time
+            return {
+                "response": "Извините, мне требуется больше времени для обработки этого запроса. Могли бы вы переформулировать или задать более конкретный вопрос?",
+                "processing_time": processing_time,
+                "context_length": len(input_text),
+                "temperature_used": self.base_temperature,
+                "emotional_weights_applied": self.emotional_weights
+            }
+        except Exception as e:
+            print(f"Error during response generation: {e}")
+            processing_time = time.time() - start_time
+            return {
+                "response": "Произошла внутренняя ошибка при генерации ответа.",
+                "processing_time": processing_time,
+                "context_length": len(input_text),
+                "temperature_used": self.base_temperature,
+                "emotional_weights_applied": self.emotional_weights
+            }
 
+    @timeout_decorator.timeout(30, use_signals=False)  # 30 second timeout for generation
     def _generate_with_neural_model(self, input_text: str, emotional_context: Dict[str, Any]) -> str:
         """
         Generate response using neural network model
@@ -201,7 +224,10 @@ class NeuralLanguageCore:
 
         try:
             # Prepare input text for the model - for T5 we need to format it appropriately
-            prompt = f"summarize: {input_text}" if self.model.config.model_type == "t5" else f"User: {input_text}\nAssistant:"
+            if self.model.config.model_type == "t5":
+                prompt = f"summarize: {input_text}"
+            else:
+                prompt = f"User: {input_text}\nAssistant:"
             
             # Tokenize input
             inputs = self.tokenizer.encode(prompt, return_tensors="pt")
@@ -211,11 +237,11 @@ class NeuralLanguageCore:
             temperature = self._calculate_dynamic_temperature(emotional_context)
             do_sample = True
             max_length = min(len(inputs[0]) + 256, self.max_context_length)
-            min_length = len(inputs[0]) + 10
+            min_length = min(len(inputs[0]) + 10, max_length - 1)  # Ensure min_length < max_length
             top_p = 0.9
             top_k = 50
             
-            # Generate response
+            # Generate response with timeout and proper parameters
             with torch.no_grad():
                 if self.model.config.model_type == "t5":
                     # For T5 models, we use different generation parameters
@@ -229,7 +255,10 @@ class NeuralLanguageCore:
                         top_k=top_k,
                         pad_token_id=self.tokenizer.pad_token_id,
                         eos_token_id=self.tokenizer.eos_token_id,
-                        decoder_start_token_id=self.tokenizer.pad_token_id
+                        decoder_start_token_id=self.tokenizer.pad_token_id if self.tokenizer.pad_token_id is not None else self.tokenizer.eos_token_id,
+                        max_new_tokens=256,  # Limit new tokens to prevent infinite generation
+                        num_return_sequences=1,
+                        repetition_penalty=1.2
                     )
                 else:
                     # For causal LM models
@@ -242,7 +271,10 @@ class NeuralLanguageCore:
                         top_p=top_p,
                         top_k=top_k,
                         pad_token_id=self.tokenizer.pad_token_id,
-                        eos_token_id=self.tokenizer.eos_token_id
+                        eos_token_id=self.tokenizer.eos_token_id,
+                        max_new_tokens=256,  # Limit new tokens to prevent infinite generation
+                        num_return_sequences=1,
+                        repetition_penalty=1.2
                     )
             
             # Decode response
@@ -252,7 +284,12 @@ class NeuralLanguageCore:
             if self.model.config.model_type != "t5" and "Assistant:" in response:
                 response = response.split("Assistant:")[1].strip()
             else:
+                # For T5, remove the original prompt
                 response = response[len(prompt):].strip()
+                
+                # Additional cleaning for T5 outputs that might include task prefixes
+                if response.startswith("summarize:"):
+                    response = response[len("summarize:"):].strip()
             
             # Apply personality to generated response
             response = self._apply_syn_personality(response, emotional_context)
