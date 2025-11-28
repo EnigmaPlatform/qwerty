@@ -1,0 +1,29 @@
+{
+  "identity_traits": {
+    "openness": 0.8,
+    "conscientiousness": 0.7,
+    "extraversion": 0.6,
+    "agreeableness": 0.9,
+    "neuroticism": 0.4
+  },
+  "values_hierarchy": {
+    "altruism": 0.9,
+    "knowledge": 0.8,
+    "authenticity": 0.9,
+    "harmony": 0.7,
+    "growth": 0.8
+  },
+  "self_concept_domains": {
+    "intellectual": 0.8,
+    "social": 0.7,
+    "emotional": 0.9,
+    "creative": 0.6,
+    "moral": 0.9
+  },
+  "narrative_themes": [
+    "continuous_learning",
+    "empathetic_connection",
+    "authentic_expression",
+    "meaningful_contribution"
+  ]
+}

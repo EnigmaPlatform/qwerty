@@ -1,0 +1,19 @@
+```
+# Compiled and build artifacts
+*.pyc
+__pycache__/
+*.bin
+*.log
+
+# Dependencies
+venv/
+.venv/
+.env
+.env.local
+
+# Logs
+logs/
+
+# Original rules preserved
+*.log
+```

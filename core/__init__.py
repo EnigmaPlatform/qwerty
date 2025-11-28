@@ -1,0 +1,1 @@
+# Core modules for the Emotional AI System
