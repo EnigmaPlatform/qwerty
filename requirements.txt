@@ -4,7 +4,3 @@ sentencepiece
 numpy>=1.21.0
 pyyaml
 json5
-scipy
-matplotlib
-pandas
-pytest

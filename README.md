@@ -1,83 +1,34 @@
-# Emotional AI System
+# Emotional AI System (Син)
 
-## Overview
-This is an advanced emotional AI system with multiple interconnected modules that simulate human-like cognitive and emotional processes.
+Это упрощенная версия Emotional AI System, интегрированная с моделью Fred и эмоциональной системой.
 
-## New UI Features
-- **Hacker-style UI**: Dark theme with neon green text in a cyberpunk/hacker aesthetic
-- **Tabbed Interface**: 
-  - Chat interface for interacting with the AI
-  - Training interface for supervised learning
-  - Metrics dashboard to monitor system performance
-- **Automatic Path Detection**: The system automatically finds all required files (models, configs, etc.) without hardcoded paths
+## Особенности
 
-## Key Features
+- Интеграция с 3-гигабайтной моделью Fred
+- Эмоциональная система с квантовым подходом
+- Глубокая эмпатия и осмысленные взаимодействия
+- Персонализированная личность "Син"
+- Простой интерфейс для взаимодействия
 
-### 1. Automatic Path Detection
-The system automatically detects the locations of:
-- FRED model files (config.json, model.bin, tokenizer.json)
-- Configuration files (emotion_config.json, personality_config.json)
-- Memory database directory
-- All other required resources
+## Требования
 
-### 2. UI Interface
-The system now launches with a hacker-style UI when you run `python main.py`:
-- **Dark theme** with **neon green text** in a cyberpunk aesthetic
-- **Three main tabs**:
-  - **Chat**: Real-time interaction with the emotional AI
-  - **Training**: Supervised learning interface where you can provide input-output pairs for training
-  - **Metrics**: System health and performance monitoring
+- Python 3.8+
+- PyTorch
+- Transformers
+- Tkinter
 
-### 3. Training Capabilities
-- Supervised learning through the training interface
-- Ability to provide expected outputs for specific inputs
-- Real-time system improvement based on training data
+## Установка
 
-### 4. Comprehensive Metrics
-- System health monitoring
-- Performance metrics tracking
-- Interaction statistics
-- Emotional and cognitive load analysis
+1. Убедитесь, что у вас есть 3-гигабайтная модель Fred
+2. Замените файл `/workspace/FRED/pytorch_model.bin` на полную версию модели (3 ГБ)
+3. Установите зависимости: `pip install torch transformers`
 
-## Usage
+## Запуск
 
-### Running the Application
 ```bash
 python main.py
 ```
 
-### Interacting with the UI
-1. **Chat Tab**: Type messages in the input field and click "ОТПРАВИТЬ" or press Enter
-2. **Training Tab**: Enter input text and expected output, then click "НАЧАТЬ ОБУЧЕНИЕ"
-3. **Metrics Tab**: Click "ОБНОВИТЬ МЕТРИКИ" to see current system status
+## Примечание
 
-### Health Check
-Use the "ПРОВЕРКА СИСТЕМЫ" button in the Chat tab to verify all system modules are operational.
-
-## Architecture
-The system includes multiple interconnected modules:
-- Neural Language Core
-- Emotional Quantum Field
-- Neurotransmitter Network
-- Cognitive Architecture
-- Identity Matrix
-- Memory Palace
-- Empathy Resonator
-- Reflection Engine
-- Belief Dynamics
-- Social Intelligence
-- Physiological Simulator
-- Behavioral Generator
-- Consciousness Stream
-- Learning Evolver
-- World Model
-
-## Requirements
-- Python 3.7+
-- PyTorch
-- Transformers
-- NumPy
-- Tkinter (GUI)
-
-## License
-This project is licensed under the terms specified in the original project.
+Если файл модели `pytorch_model.bin` меньше 1 ГБ, система не будет генерировать осмысленные ответы и будет возвращать ошибки при попытке загрузки модели. Убедитесь, что вы заменили файл на полную 3-гигабайтную версию модели перед запуском.
