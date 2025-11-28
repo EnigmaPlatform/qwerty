@@ -1,43 +1,9 @@
 ```
-# Model files and artifacts
-models/Sin/pytorch_model.bin
-models/Sin/training_args.bin
-models/Sin/*.bin
-
-# Dependencies and build artifacts
-__pycache__/
+# Compiled Python files
 *.pyc
-*.pyo
-*.pyd
-*.so
-*.egg-info/
-dist/
-build/
-*.egg
-*.whl
-pip-wheel-metadata/
+__pycache__/
 
-# Virtual environments
+# Dependencies
 venv/
 .venv/
-env/
-.ENV
-
-# Logs
-*.log
-
-# OS generated files
-.DS_Store
-Thumbs.db
-ehthumbs.db
-Icon?
-.directory
-.Trashes
-
-# Editor files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
 ```
