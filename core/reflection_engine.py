@@ -613,6 +613,37 @@ class ReflectionEngine:
         """
         return ["Повышение качества понимания", "Развитие эмпатии"]
 
+    def _identify_learning_opportunities(self, input_text: str, response: str) -> List[str]:
+        """
+        Идентификация возможностей для обучения
+        """
+        opportunities = []
+        
+        # Оценка сложности запроса
+        complexity = self._assess_complexity(input_text)
+        if complexity > 0.7:
+            opportunities.append("Изучить сложные темы, представленные пользователем")
+        
+        # Оценка эмоционального тона
+        emotional_tone = self._assess_emotional_tone(input_text)
+        if abs(emotional_tone) > 0.5:
+            opportunities.append("Развить навыки эмоциональной поддержки")
+        
+        # Проверка, был ли ответ коротким
+        if len(response) < 30:
+            opportunities.append("Развить навыки подробного объяснения")
+        
+        # Проверка намерения запроса
+        intent = self._identify_intent(input_text)
+        if intent == 'inquiry':
+            opportunities.append("Улучшить способность отвечать на вопросы")
+        
+        # Если не было явных возможностей, добавляем общую
+        if not opportunities:
+            opportunities.append("Общее развитие навыков взаимодействия")
+        
+        return opportunities
+
     def _extract_development_insights(self, reflections: List[Dict[str, Any]]) -> List[str]:
         """
         Извлечение инсайтов развития

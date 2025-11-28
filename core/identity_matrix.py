@@ -2,17 +2,29 @@
 IdentityMatrix: Система идентичности
 """
 import json
+import os
 from typing import Dict, Any, List
 import numpy as np
 
 
 class IdentityMatrix:
-    def __init__(self, initial_identity: Dict[str, Any] = None):
+    def __init__(self, initial_identity: Dict[str, Any] = None, config_path: str = None):
         """
         Инициализация системы идентичности
         """
         # Загрузка конфигурации личности
-        with open('configs/personality_config.json', 'r', encoding='utf-8') as f:
+        if config_path is None:
+            # Пытаемся найти конфигурационный файл по умолчанию
+            # Определяем путь к проекту (папка, содержащая директорию core)
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            project_root = os.path.dirname(current_dir)  # Поднимаемся из core/
+            config_path = os.path.join(project_root, 'configs', 'personality_config.json')
+        
+        # Check if config file exists before attempting to open
+        if not os.path.exists(config_path):
+            raise FileNotFoundError(f"Personality configuration file not found at: {config_path}")
+        
+        with open(config_path, 'r', encoding='utf-8') as f:
             self.personality_config = json.load(f)
         
         # Инициализация вектора идентичности
