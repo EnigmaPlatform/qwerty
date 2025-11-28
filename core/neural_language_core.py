@@ -8,6 +8,9 @@ import random
 import string
 import os
 import json
+import torch
+from transformers import T5ForConditionalGeneration, T5Tokenizer
+import pickle
 
 
 class NeuralLanguageCore:
@@ -16,6 +19,7 @@ class NeuralLanguageCore:
         Инициализация языкового ядра с моделью FRED-T5-large
         """
         self.model_path = model_path
+        self.sin_model_path = os.path.join(os.path.dirname(model_path), 'Sin')
         
         # Загрузка конфигурации личности Син
         self._load_personality_config()
@@ -28,6 +32,12 @@ class NeuralLanguageCore:
         self.base_temperature = 0.7
         self.alpha = 0.3  # Влияние эмоций на внимание
         self.beta = 0.2   # Влияние возбуждения на температуру
+        
+        # Загрузка модели
+        self._load_model_and_tokenizer()
+        
+        # Загрузка сохраненного состояния, если существует
+        self._load_saved_state()
         
         print(f"Языковое ядро инициализировано с персональностью Син")
     
@@ -83,14 +93,135 @@ class NeuralLanguageCore:
     
     def _load_model_and_tokenizer(self):
         """
-        Загрузка модели и токенизатора (заглушка для работы без тяжелых библиотек)
+        Загрузка модели и токенизатора
         """
-        print(f"Попытка загрузки модели из: {self.model_path}")
+        try:
+            # Загрузка токенизатора
+            self.tokenizer = T5Tokenizer.from_pretrained(self.model_path)
+            
+            # Проверяем, есть ли модель Sin, если нет - создаем на основе FRED
+            sin_model_dir = os.path.join(self.model_path, 'Sin') if 'FRED' in self.model_path else os.path.join(os.path.dirname(self.model_path), 'Sin')
+            
+            if os.path.exists(sin_model_dir):
+                # Загружаем модель Sin
+                self.model = T5ForConditionalGeneration.from_pretrained(sin_model_dir)
+                print(f"Модель Sin загружена из: {sin_model_dir}")
+            else:
+                # Загружаем FRED модель и будем использовать её как основу для Sin
+                self.model = T5ForConditionalGeneration.from_pretrained(self.model_path)
+                print(f"Базовая модель FRED загружена из: {self.model_path}")
+                
+                # Добавляем дополнительные слои для эмоций и других доработок
+                self._add_emotional_layers()
+                
+                # Сохраняем как модель Sin
+                self._save_sin_model()
+            
+            # Установка модели в режим оценки
+            self.model.eval()
+            
+            # Проверяем, есть ли GPU
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            self.model.to(self.device)
+            print(f"Модель загружена на: {self.device}")
+            
+        except Exception as e:
+            print(f"Ошибка загрузки модели: {e}")
+            # Если не удается загрузить, используем заглушку
+            self.model = None
+            self.tokenizer = None
+    
+    def _add_emotional_layers(self):
+        """
+        Добавление дополнительных слоев для эмоций и других доработок
+        """
+        # Добавляем эмоциональные слои к модели
+        # Создаем эмоциональный энкодер
+        import torch.nn as nn
         
-        if os.path.exists(self.model_path):
-            print(f"Модель найдена в: {self.model_path}")
-        else:
-            print(f"Директория модели не найдена: {self.model_path}")
+        # Добавляем эмоциональный контекст к основной модели
+        # Это упрощенная реализация, в реальности потребуется более сложная архитектура
+        class EmotionalT5ForConditionalGeneration(T5ForConditionalGeneration):
+            def __init__(self, config):
+                super().__init__(config)
+                # Добавляем дополнительные слои для обработки эмоционального контекста
+                self.emotional_context_dim = 128
+                self.emotional_projector = nn.Linear(config.d_model, self.emotional_context_dim)
+                self.emotional_fusion = nn.Linear(config.d_model + self.emotional_context_dim, config.d_model)
+                
+            def forward(self, input_ids=None, attention_mask=None, emotional_context=None, **kwargs):
+                # Получаем стандартный вывод модели
+                outputs = super().forward(input_ids=input_ids, attention_mask=attention_mask, **kwargs)
+                
+                # Если передан эмоциональный контекст, интегрируем его
+                if emotional_context is not None:
+                    # Обрабатываем эмоциональный контекст
+                    emotional_features = self.emotional_projector(outputs.last_hidden_state)
+                    # Конкатенируем с основными признаками
+                    combined_features = torch.cat([outputs.last_hidden_state, emotional_features], dim=-1)
+                    # Проектим обратно к стандартному размеру
+                    fused_features = self.emotional_fusion(combined_features)
+                    # Обновляем last_hidden_state (упрощенная реализация)
+                
+                return outputs
+        
+        # Заменяем модель на эмоциональную версию
+        # Для упрощения, просто добавим атрибуты для эмоциональной обработки
+        self.model.emotional_context_dim = 128
+        self.model.emotional_projector = nn.Linear(self.model.config.d_model, 128)
+        self.model.emotional_fusion = nn.Linear(
+            self.model.config.d_model + 128, 
+            self.model.config.d_model
+        )
+    
+    def _save_sin_model(self):
+        """
+        Сохранение модифицированной модели как Sin
+        """
+        sin_model_dir = os.path.join(os.path.dirname(self.model_path), 'Sin')
+        os.makedirs(sin_model_dir, exist_ok=True)
+        
+        # Сохраняем модифицированную модель
+        self.model.save_pretrained(sin_model_dir)
+        
+        # Также сохраняем токенизатор
+        self.tokenizer.save_pretrained(sin_model_dir)
+        
+        print(f"Модель Sin сохранена в: {sin_model_dir}")
+    
+    def _load_saved_state(self):
+        """
+        Загрузка сохраненного состояния модели при перезапуске
+        """
+        state_file = os.path.join(self.model_path, 'Sin', 'model_state.pkl')
+        if os.path.exists(state_file):
+            try:
+                with open(state_file, 'rb') as f:
+                    state = pickle.load(f)
+                print("Состояние модели загружено из сохранения")
+            except Exception as e:
+                print(f"Ошибка загрузки сохраненного состояния: {e}")
+    
+    def save_state(self):
+        """
+        Сохранение текущего состояния модели
+        """
+        sin_model_dir = os.path.join(self.model_path, 'Sin')
+        os.makedirs(sin_model_dir, exist_ok=True)
+        
+        state_file = os.path.join(sin_model_dir, 'model_state.pkl')
+        try:
+            # Сохраняем важные параметры состояния
+            state = {
+                'emotional_weights': self.emotional_weights,
+                'learning_episodes': getattr(self, 'learning_episodes', []),
+                'model_state_dict': self.model.state_dict() if self.model else None
+            }
+            with open(state_file, 'wb') as f:
+                pickle.dump(state, f)
+            print("Состояние модели сохранено")
+        except Exception as e:
+            print(f"Ошибка сохранения состояния: {e}")
     
     def generate_response(self, input_text: str, emotional_context: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -98,8 +229,8 @@ class NeuralLanguageCore:
         """
         start_time = time.time()
         
-        # Генерация ответа с использованием персональности Син
-        response = self._generate_syn_response(input_text, emotional_context)
+        # Используем нейросеть для генерации ответа
+        response = self._generate_with_neural_model(input_text, emotional_context)
         
         # Динамическая температура на основе эмоционального состояния
         temperature = self._calculate_dynamic_temperature(emotional_context)
@@ -113,6 +244,88 @@ class NeuralLanguageCore:
             "temperature_used": temperature,
             "emotional_weights_applied": self.emotional_weights
         }
+    
+    def _generate_with_neural_model(self, input_text: str, emotional_context: Dict[str, Any]) -> str:
+        """
+        Генерация ответа с использованием нейросетевой модели
+        """
+        if self.model is None or self.tokenizer is None:
+            # Резервная реализация, если модель не загружена
+            return self._generate_syn_response(input_text, emotional_context)
+        
+        try:
+            # Подготовка входного текста для модели T5
+            input_text = f"question: {input_text} context: {emotional_context.get('dominant_emotion', '') if emotional_context else ''}"
+            
+            # Токенизация входа
+            inputs = self.tokenizer.encode(input_text, return_tensors="pt", max_length=512, truncation=True)
+            inputs = inputs.to(self.device)
+            
+            # Подготовка параметров генерации с учетом эмоционального контекста
+            temperature = self._calculate_dynamic_temperature(emotional_context)
+            do_sample = True
+            max_length = 256
+            min_length = 10
+            top_p = 0.9
+            top_k = 50
+            
+            # Генерация ответа
+            with torch.no_grad():
+                outputs = self.model.generate(
+                    inputs,
+                    max_length=max_length,
+                    min_length=min_length,
+                    temperature=temperature,
+                    do_sample=do_sample,
+                    top_p=top_p,
+                    top_k=top_k,
+                    pad_token_id=self.tokenizer.pad_token_id,
+                    eos_token_id=self.tokenizer.eos_token_id
+                )
+            
+            # Декодирование ответа
+            response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+            
+            # Применение персональности Син к сгенерированному ответу
+            response = self._apply_syn_personality(response, emotional_context)
+            
+            return response
+            
+        except Exception as e:
+            print(f"Ошибка генерации с нейросетью: {e}")
+            # В случае ошибки используем резервную реализацию
+            return self._generate_syn_response(input_text, emotional_context)
+    
+    def _apply_syn_personality(self, response: str, emotional_context: Dict[str, Any]) -> str:
+        """
+        Применение персональности Син к сгенерированному ответу
+        """
+        # Добавляем эмоциональные и персональные особенности к ответу
+        if emotional_context:
+            dominant_emotion = emotional_context.get('dominant_emotion', 'neutral')
+            intensity = emotional_context.get('intensity', 0.5)
+            
+            # В зависимости от эмоции добавляем соответствующую окраску
+            if dominant_emotion in ['sadness', 'fear', 'anger'] and intensity > 0.5:
+                # Для негативных эмоций добавляем эмпатичные элементы
+                empathetic_additions = self.personality_config.get('signature_phrases', {}).get('эмпатийные_реакции', [])
+                if empathetic_additions:
+                    import random
+                    addition = random.choice(empathetic_additions)
+                    response = f"{addition} {response}"
+            elif dominant_emotion in ['joy', 'surprise'] and intensity > 0.5:
+                # Для позитивных эмоций добавляем соответствующие элементы
+                positive_additions = [
+                    "Твоя радость передается мне...", 
+                    "Как замечательно слышать это...",
+                    "Ты поделился чем-то светлым..."
+                ]
+                import random
+                addition = random.choice(positive_additions)
+                response = f"{addition} {response}"
+        
+        # Всегда возвращаем ответ на русском языке
+        return response
     
     def _calculate_dynamic_temperature(self, emotional_context: Dict[str, Any]) -> float:
         """

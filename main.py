@@ -77,7 +77,13 @@ class EmotionalAISystem:
             memory_path = self._find_memory_path(execution_base_path)
             
             # 1. Базовая инициализация
-            self.neural_core = NeuralLanguageCore(fred_path)
+            # Используем модель Sin вместо FRED
+            sin_path = os.path.join(os.path.dirname(fred_path), 'Sin')
+            if os.path.exists(sin_path):
+                self.neural_core = NeuralLanguageCore(sin_path)
+            else:
+                # Если модели Sin нет, создаем её из FRED
+                self.neural_core = NeuralLanguageCore(fred_path)
             
             # 2. Эмоциональная система
             emotion_config_path = os.path.join(configs_path, 'emotion_config.json')
@@ -347,6 +353,12 @@ class EmotionalAISystem:
             # 16. Обновление системы на основе опыта
             self.learning_evolver.update_from_experience()
             
+            # Обновление параметров модели на основе обучения
+            self.learning_evolver.update_model_parameters(self.neural_core.model)
+            
+            # Сохранение обновленного состояния модели
+            self.neural_core.save_state()
+            
             # Логгирование метрик
             processing_time = time.time() - start_time
             interaction_data = {
@@ -439,6 +451,12 @@ class EmotionalAISystem:
             
             # Применяем обучение
             self.learning_evolver.update_from_experience()
+            
+            # Обновление параметров модели на основе обучения
+            self.learning_evolver.update_model_parameters(self.neural_core.model)
+            
+            # Сохранение обновленного состояния модели
+            self.neural_core.save_state()
             
             return True
         except Exception as e:

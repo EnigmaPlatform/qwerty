@@ -1,5 +1,6 @@
 """
-Enhanced UI with modern interface, copy/paste functionality, dataset loading, and training features
+Enhanced UI with modern interface, copy/paste functionality, dataset loading, training features, 
+animations, and help documentation
 """
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox, filedialog, Menu
@@ -12,6 +13,7 @@ from datetime import datetime
 import pandas as pd
 from typing import Dict, Any, List
 import re
+import tkinter.simpledialog
 
 
 class EnhancedEmotionalAIUI:
@@ -35,6 +37,10 @@ class EnhancedEmotionalAIUI:
             'button': '#585b70'        # Button background
         }
         
+        # Avatar animation state
+        self.avatar_animation_state = 0
+        self.animation_running = False
+        
         # Setup UI
         self.setup_ui()
         
@@ -43,6 +49,9 @@ class EnhancedEmotionalAIUI:
         
         # Training data
         self.training_data = []
+        
+        # Start avatar animation
+        self.start_avatar_animation()
         
         # Update display
         self.update_display()
@@ -81,7 +90,39 @@ class EnhancedEmotionalAIUI:
         )
         subtitle_label.pack()
         
-        # Notebook for tabs
+        # Split window: left side for avatar, right side for tabs
+        split_frame = tk.Frame(main_container, bg=self.colors['bg'])
+        split_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Left side - Avatar area (1/4 of the width)
+        avatar_frame = tk.Frame(split_frame, bg=self.colors['bg'], width=350)
+        avatar_frame.pack_propagate(False)  # Don't let it resize
+        avatar_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 5))
+        
+        # Avatar display
+        self.avatar_label = tk.Label(
+            avatar_frame,
+            text="🤖",
+            font=('Arial', 80),
+            bg=self.colors['panel'],
+            fg=self.colors['accent'],
+            relief=tk.RAISED,
+            borderwidth=2
+        )
+        self.avatar_label.pack(fill=tk.BOTH, expand=True, pady=10)
+        
+        # Avatar status label
+        self.avatar_status_label = tk.Label(
+            avatar_frame,
+            text="Готов к взаимодействию",
+            font=('Arial', 10),
+            fg=self.colors['secondary'],
+            bg=self.colors['bg'],
+            wraplength=300
+        )
+        self.avatar_status_label.pack(pady=5)
+        
+        # Right side - Notebook for tabs
         style = ttk.Style()
         style.theme_use('clam')
         
@@ -105,8 +146,8 @@ class EnhancedEmotionalAIUI:
             foreground=[('selected', self.colors['bg'])]
         )
         
-        notebook = ttk.Notebook(main_container, style='Custom.TNotebook')
-        notebook.pack(fill=tk.BOTH, expand=True)
+        notebook = ttk.Notebook(split_frame, style='Custom.TNotebook')
+        notebook.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
         
         # Chat tab
         self.chat_frame = tk.Frame(notebook, bg=self.colors['bg'])
@@ -124,11 +165,147 @@ class EnhancedEmotionalAIUI:
         self.metrics_frame = tk.Frame(notebook, bg=self.colors['bg'])
         notebook.add(self.metrics_frame, text='  МЕТРИКИ  ')
         
+        # Help tab
+        self.help_frame = tk.Frame(notebook, bg=self.colors['bg'])
+        notebook.add(self.help_frame, text='  СПРАВКА  ')
+        
         # Create interfaces for each tab
         self.create_chat_interface()
         self.create_training_interface()
         self.create_datasets_interface()
         self.create_metrics_interface()
+        self.create_help_interface()
+    
+    def create_help_interface(self):
+        """Create help documentation interface"""
+        # Help content
+        help_content = """
+СПРАВКА ПО ПАРАМЕТРАМ СИСТЕМЫ
+
+1. ПАРАМЕТРЫ ОБУЧЕНИЯ:
+   - associative_learning: Ассоциативное обучение (связи между стимулами)
+     Изменяется: При формировании новых ассоциаций, после успешных взаимодействий
+   
+   - reinforcement_learning: Обучение с подкреплением (Q-обучение)
+     Изменяется: При получении положительной/отрицательной обратной связи
+   
+   - observational_learning: Обучение через наблюдение
+     Изменяется: При анализе поведения других агентов или моделей
+   
+   - insight_learning: Обучение через озарение (понимание связей)
+     Изменяется: При решении сложных задач, нахождении неожиданных решений
+   
+   - imprinting: Импринтинг (ранние усвоения)
+     Изменяется: При формировании фундаментальных убеждений
+
+2. ГИПЕРПАРАМЕТРЫ:
+   - learning_rate: Скорость обучения
+     Изменяется: Автоматически на основе эффективности обучения
+   
+   - exploration_rate: Степень исследования
+     Изменяется: При низкой эффективности, для поиска новых стратегий
+   
+   - exploitation_rate: Степень использования знаний
+     Изменяется: При высокой эффективности, для закрепления успешных стратегий
+
+3. МОТИВАЦИОННЫЕ СИСТЕМЫ:
+   - curiosity_drive: Любопытство
+     Изменяется: При получении новой информации, при решении неизвестных задач
+   
+   - achievement_drive: Стремление к достижениям
+     Изменяется: При успешном выполнении задач, получении похвалы
+   
+   - social_drive: Социальная мотивация
+     Изменяется: При позитивном взаимодействии с пользователем
+   
+   - survival_drive: Инстинкты выживания
+     Изменяется: В симуляциях, при угрозах системе
+
+4. ЭМОЦИОНАЛЬНЫЕ ПАРАМЕТРЫ:
+   - emotional_weights: Веса эмоциональных реакций
+     Изменяется: При обучении, на основе эмоциональных откликов
+   
+   - alpha: Влияние эмоций на внимание
+     Изменяется: На основе важности текущей ситуации
+   
+   - beta: Влияние возбуждения на температуру генерации
+     Изменяется: В зависимости от эмоционального состояния
+
+5. МЕТРИКИ ЭФФЕКТИВНОСТИ:
+   - accuracy_improvement: Улучшение точности
+     Изменяется: При успешном выполнении задач
+   
+   - speed_improvement: Улучшение скорости
+     Изменяется: При более быстром решении задач
+   
+   - adaptation_rate: Скорость адаптации
+     Изменяется: При быстрой подстройке к новым условиям
+   
+   - generalization_ability: Способность к обобщению
+     Изменяется: При успешном применении знаний в новых контекстах
+
+ПАРАМЕТРЫ МЕНЯЮТСЯ АВТОМАТИЧЕСКИ:
+- При успешных взаимодействиях
+- При получении обратной связи
+- При решении сложных задач
+- При обнаружении новых паттернов
+- При обучении на примерах
+- При адаптации к пользователю
+        """
+        
+        # Help display
+        help_display = scrolledtext.ScrolledText(
+            self.help_frame,
+            wrap=tk.WORD,
+            bg=self.colors['panel'],
+            fg=self.colors['fg'],
+            font=('Arial', 11),
+            relief=tk.FLAT,
+            borderwidth=2
+        )
+        help_display.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        help_display.insert(tk.END, help_content.strip())
+        help_display.config(state=tk.DISABLED)
+    
+    def start_avatar_animation(self):
+        """Start avatar animation"""
+        self.animation_running = True
+        self.animate_avatar()
+    
+    def animate_avatar(self):
+        """Animate the avatar based on system state"""
+        if not self.animation_running:
+            return
+            
+        # Different animations based on system state
+        if self.current_mode == "chat":
+            # Chat mode animations
+            if self.avatar_animation_state % 4 == 0:
+                self.avatar_label.config(text="🤖")
+            elif self.avatar_animation_state % 4 == 1:
+                self.avatar_label.config(text="🤔")
+            elif self.avatar_animation_state % 4 == 2:
+                self.avatar_label.config(text="💭")
+            else:
+                self.avatar_label.config(text="💬")
+        elif self.current_mode == "training":
+            # Training mode animations
+            if self.avatar_animation_state % 3 == 0:
+                self.avatar_label.config(text="🧠")
+            elif self.avatar_animation_state % 3 == 1:
+                self.avatar_label.config(text="⚡")
+            else:
+                self.avatar_label.config(text="🔍")
+        
+        self.avatar_animation_state += 1
+        
+        # Schedule next animation
+        self.root.after(1000, self.animate_avatar)
+    
+    def update_avatar_status(self, status):
+        """Update avatar status text"""
+        self.avatar_status_label.config(text=status)
     
     def create_menu(self):
         """Create menu bar with copy/paste functionality"""
@@ -395,6 +572,9 @@ class EnhancedEmotionalAIUI:
         # Clear input
         self.user_input.delete("1.0", tk.END)
         
+        # Update avatar status to show processing
+        self.root.after(0, lambda: self.update_avatar_status("Обработка запроса..."))
+        
         # Process in background thread to avoid UI freezing
         threading.Thread(target=self.process_ai_response, args=(user_text,), daemon=True).start()
     
@@ -410,8 +590,13 @@ class EnhancedEmotionalAIUI:
             # Add AI response with emoji
             self.add_to_chat("СИН", f"{emoji} {ai_response}", 'ai')
             
+            # Update avatar status to show ready state
+            self.root.after(0, lambda: self.update_avatar_status("Готов к взаимодействию"))
+            
         except Exception as e:
             self.add_to_chat("СИСТЕМА", f"Ошибка обработки: {str(e)}", 'system')
+            # Update avatar status to show error state
+            self.root.after(0, lambda: self.update_avatar_status("Ошибка обработки"))
     
     def get_reaction_emoji(self, response_text):
         """Determine appropriate emoji based on response content"""
@@ -695,6 +880,3 @@ class EnhancedEmotionalAIUI:
         self.root.mainloop()
 
 
-# Import required module for the dialog
-import tkinter.simpledialog
-tk.simpledialog = tkinter.simpledialog

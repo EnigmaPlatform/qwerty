@@ -4,6 +4,9 @@ LearningEvolver: Система обучения
 from typing import Dict, Any, List
 import numpy as np
 import time
+import torch
+import os
+import pickle
 
 
 class LearningEvolver:
@@ -54,6 +57,9 @@ class LearningEvolver:
             'exploitation_rate': 0.7,
             'memory_decay': 0.01
         }
+        
+        # Состояние для сохранения
+        self.model_parameters_backup = None
 
     def process_learning_experience(self, experience: Dict[str, Any], 
                                   feedback: Dict[str, Any]) -> Dict[str, Any]:
@@ -223,10 +229,10 @@ class LearningEvolver:
         Обучение через наблюдение (социальное обучение)
         """
         observed_behavior = experience.get('observed_behavior', {})
-        model = experience.get('model', 'unknown')
+        model = experience.get('model', 'unknown')  # This refers to a person/agent being observed, not the neural model
         outcome = feedback.get('outcome', 'neutral')
         
-        # Обновление знаний о поведении модели
+        # Update knowledge about the observed model/agent's behavior
         if model not in self.knowledge_graph:
             self.knowledge_graph[model] = {'observed_behaviors': {}}
         
@@ -248,10 +254,10 @@ class LearningEvolver:
         else:
             obs_data['failure_count'] += 1
         
-        # Вероятность успеха наблюдаемого поведения
+        # Success probability of the observed behavior
         success_prob = obs_data['success_count'] / obs_data['total_observations']
         
-        # Обновление компонента наблюдательного обучения
+        # Update observational learning component
         self.learning_components['observational_learning'] = min(1.0, 
             self.learning_components['observational_learning'] + 0.01 * success_prob)
         
@@ -557,3 +563,81 @@ class LearningEvolver:
             'transferred_items': len(transferred_knowledge),
             'transfer_efficiency': self.transfer_efficiency
         }
+
+    def update_model_parameters(self, neural_model):
+        """
+        Обновление параметров нейросетевой модели на основе обучения
+        """
+        if neural_model is not None:
+            # Обновляем параметры модели на основе знаний и обучения
+            try:
+                # В реальной реализации здесь будет процесс fine-tuning
+                # Для симуляции мы можем немного изменить веса на основе знаний
+                if hasattr(neural_model, 'emotional_fusion') and self.knowledge_graph:
+                    # Применяем знания к эмоциональным слоям модели
+                    knowledge_influence = min(0.1, len(self.knowledge_graph) * 0.001)
+                    
+                    # Легкое изменение весов на основе знаний (упрощенная реализация)
+                    with torch.no_grad():
+                        for param in neural_model.parameters():
+                            if param.requires_grad:
+                                # Добавляем небольшое изменение на основе обучения
+                                noise = torch.randn_like(param) * knowledge_influence * 0.01
+                                param.add_(noise)
+                
+                print("Параметры модели обновлены на основе обучения")
+            except Exception as e:
+                print(f"Ошибка обновления параметров модели: {e}")
+        
+        # Сохраняем текущее состояние обучения
+        self._save_learning_state()
+
+    def _save_learning_state(self):
+        """
+        Сохранение состояния обучения
+        """
+        # Создаем директорию для сохранения, если её нет
+        save_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'models', 'Sin')
+        os.makedirs(save_dir, exist_ok=True)
+        
+        state_file = os.path.join(save_dir, 'learning_state.pkl')
+        try:
+            state = {
+                'learning_components': self.learning_components,
+                'learning_episodes': self.learning_episodes,
+                'skill_progressions': self.skill_progressions,
+                'knowledge_graph': self.knowledge_graph,
+                'hyperparameters': self.hyperparameters,
+                'motivation_system': self.motivation_system,
+                'performance_metrics': self.performance_metrics
+            }
+            with open(state_file, 'wb') as f:
+                pickle.dump(state, f)
+            print("Состояние обучения сохранено")
+        except Exception as e:
+            print(f"Ошибка сохранения состояния обучения: {e}")
+
+    def load_learning_state(self):
+        """
+        Загрузка состояния обучения
+        """
+        state_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'models', 'Sin', 'learning_state.pkl')
+        if os.path.exists(state_file):
+            try:
+                with open(state_file, 'rb') as f:
+                    state = pickle.load(f)
+                
+                self.learning_components = state.get('learning_components', self.learning_components)
+                self.learning_episodes = state.get('learning_episodes', [])
+                self.skill_progressions = state.get('skill_progressions', {})
+                self.knowledge_graph = state.get('knowledge_graph', {})
+                self.hyperparameters = state.get('hyperparameters', self.hyperparameters)
+                self.motivation_system = state.get('motivation_system', self.motivation_system)
+                self.performance_metrics = state.get('performance_metrics', self.performance_metrics)
+                
+                print("Состояние обучения загружено")
+                return True
+            except Exception as e:
+                print(f"Ошибка загрузки состояния обучения: {e}")
+                return False
+        return False
